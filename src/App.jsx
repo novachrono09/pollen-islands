@@ -11,6 +11,7 @@ import PromptIsland from './components/PromptIsland';
 import Confetti from './components/Confetti';
 import Toast from './components/Toast';
 import SettingsModal from './components/SettingsModal';
+import ZoomControls from './components/ZoomControls';
 
 function App() {
   const [history, setHistory] = useLocalStorage('pi_history', []);
@@ -33,15 +34,16 @@ function App() {
   const [seed, setSeed] = useState('');
   const [enhance, setEnhance] = useState(true);
 
-  // Canvas State with persistence
-  const [items, setItems] = useLocalStorage('pi_canvas_items', []);
-  const [canvasOffset, setCanvasOffset] = useLocalStorage('pi_canvas_offset', { x: 0, y: 0 });
-  const [canvasScale, setCanvasScale] = useLocalStorage('pi_canvas_scale', 1);
+  // Zustand State
+  const canvasView = useStore(state => state.canvasView);
+  const setCanvasView = useStore(state => state.setCanvasView);
+  const items = useStore(state => state.items);
+  const setItems = useStore(state => state.setItems);
+  const apiKey = useStore(state => state.apiKey);
+  const setApiKey = useStore(state => state.setApiKey);
   
   // Session/Project Management
   const [sessions, setSessions] = useLocalStorage('pi_sessions', []);
-  const apiKey = useStore(state => state.apiKey);
-  const setApiKey = useStore(state => state.setApiKey);
 
   const lastGenTs = useRef(0);
   const toastRef = useRef(null);
@@ -66,6 +68,7 @@ function App() {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
   }, [setApiKey]);
+
   const vibrate = useCallback(() => { if (navigator.vibrate) navigator.vibrate(10); }, []);
   const toast = useCallback((msg) => toastRef.current?.show(msg), []);
 
@@ -86,22 +89,20 @@ function App() {
       id: Date.now(),
       name,
       items,
-      offset: canvasOffset,
-      scale: canvasScale,
+      offset: canvasView,
       ts: Date.now()
     };
     
     setSessions(prev => [newSession, ...prev]);
     toast('Project saved ✓');
-  }, [items, canvasOffset, canvasScale, sessions, setSessions, toast]);
+  }, [items, canvasView, sessions, setSessions, toast]);
 
   const onLoadSession = useCallback((session) => {
     setItems(session.items);
-    setCanvasOffset(session.offset);
-    setCanvasScale(session.scale);
+    if (session.offset) setCanvasView(session.offset);
     toast(`Loaded: ${session.name}`);
     vibrate();
-  }, [setItems, setCanvasOffset, setCanvasScale, toast, vibrate]);
+  }, [setItems, setCanvasView, toast, vibrate]);
 
   const onTidyUp = useCallback(() => {
     if (items.length === 0) return;
@@ -110,8 +111,8 @@ function App() {
     const gap = 40;
     const cardW = 320;
     
-    const centerX = (window.innerWidth / 2 - canvasOffset.x) / canvasScale;
-    const centerY = (window.innerHeight / 2 - canvasOffset.y) / canvasScale;
+    const centerX = (window.innerWidth / 2 - canvasView.x) / canvasView.scale;
+    const centerY = (window.innerHeight / 2 - canvasView.y) / canvasView.scale;
 
     const gridW = cols * cardW + (cols - 1) * gap;
     const rows = Math.ceil(items.length / cols);
@@ -120,24 +121,23 @@ function App() {
     const startX = centerX - gridW / 2;
     const startY = centerY - estimatedGridH / 2;
     
-    setItems(prev => {
-      const colY = new Array(cols).fill(startY);
-      return prev.map((it, i) => {
+    const colY = new Array(cols).fill(startY);
+    const updatedItems = items.map((it, i) => {
         const c = i % cols;
         const x = startX + c * (cardW + gap);
         const y = colY[c];
         colY[c] += (it.h || cardW) + gap;
         return { ...it, x, y };
-      });
     });
+
+    setItems(updatedItems);
     toast('Islands organized ✨');
-  }, [items.length, canvasOffset, canvasScale, setItems, vibrate, toast]);
+  }, [items, canvasView, setItems, vibrate, toast]);
 
   const onRecenter = useCallback(() => {
-    setCanvasOffset({ x: 0, y: 0 });
-    setCanvasScale(1);
+    setCanvasView({ x: 0, y: 0, scale: 1 });
     vibrate();
-  }, [setCanvasOffset, setCanvasScale, vibrate]);
+  }, [setCanvasView, vibrate]);
 
   const onSurpriseMe = useCallback(() => {
     const pool = [
@@ -162,7 +162,34 @@ function App() {
       toast('Nothing to download');
       return;
     }
-    toast('Download logic disabled in pure frontend mode');
+    
+    toast('Downloading all items...');
+    for (const item of items) {
+      try {
+        if (item.type === 'text') {
+          const blob = new Blob([item.content], { type: 'text/plain' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `island-${item.id}.txt`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } else if (item.url) {
+          const res = await fetch(item.url);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `island-${item.id}.jpg`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      } catch (e) {
+        console.error('Failed to download item', item.id, e);
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+    toast('Download complete ✓');
   }, [items, toast]);
 
   const onItemLoad = useCallback((item, errorMsg = null) => {
@@ -171,10 +198,10 @@ function App() {
 
     pendingCount.current--;
     if (errorMsg) {
-      setItems(prev => prev.map(it => it.id === item.id ? { ...it, isNew: false, error: errorMsg } : it));
+      setItems(items.map(it => it.id === item.id ? { ...it, isNew: false, error: errorMsg } : it));
     } else {
-      setHistory(prev => [item, ...prev].slice(0, 100));
-      setItems(prev => prev.map(it => it.id === item.id ? { ...it, isNew: false } : it));
+      setHistory([item, ...history].slice(0, 100));
+      setItems(items.map(it => it.id === item.id ? { ...it, isNew: false } : it));
     }
 
     if (pendingCount.current <= 0) {
@@ -188,7 +215,7 @@ function App() {
     } else if (errorMsg) {
       toast(`Generation failed ❌`);
     }
-  }, [setHistory, toast, setItems]);
+  }, [history, setHistory, toast, items, setItems]);
 
   const onGenerate = useCallback(async () => {
     const p = prompt.trim();
@@ -211,8 +238,8 @@ function App() {
       const offsetX = (i % 2 === 0 ? i * 20 : -i * 20);
       const offsetY = i * 20;
       
-      const posX = (window.innerWidth / 2) - (targetW / 2) - (canvasOffset.x / canvasScale) + offsetX;
-      const posY = (window.innerHeight / 2) - (targetW / 2) - (canvasOffset.y / canvasScale) + offsetY;
+      const posX = (window.innerWidth / 2) - (targetW / 2) - (canvasView.x / canvasView.scale) + offsetX;
+      const posY = (window.innerHeight / 2) - (targetW / 2) - (canvasView.y / canvasView.scale) + offsetY;
       
       const isImg = mode === 'image';
       let h = 200;
@@ -237,14 +264,14 @@ function App() {
       };
     });
 
-    setItems(prev => [...newItems, ...prev]);
+    setItems([...newItems, ...items]);
 
     if (!apiKey) {
       toast('API Key required. Click Pollinations logo to connect.');
       newItems.forEach(item => {
         const errorMsg = 'Missing API Key';
         const failedItem = { ...item, isPending: false, error: errorMsg };
-        setItems(prev => prev.map(it => it.id === item.id ? failedItem : it));
+        setItems(items.map(it => it.id === item.id ? failedItem : it));
         onItemLoad(failedItem, errorMsg);
       });
       return;
@@ -258,7 +285,6 @@ function App() {
         const actualSeed = (!isNaN(parsedSeed)) ? (parsedSeed + idx) : Math.floor(Math.random() * 2147483647);
 
         if (item.type === 'text') {
-          // Keep using SDK for text as it usually behaves better for completions
           const openai = new OpenAI({
             baseURL: window.location.origin + '/api/proxy',
             apiKey: trimmedKey,
@@ -274,7 +300,7 @@ function App() {
           const content = response.choices?.[0]?.message?.content || 'Empty response';
           
           const updatedItem = { ...item, content, isPending: false };
-          setItems(prev => prev.map(it => it.id === item.id ? updatedItem : it));
+          setItems(items.map(it => it.id === item.id ? updatedItem : it));
           onItemLoad(updatedItem);
 
         } else {
@@ -290,7 +316,6 @@ function App() {
           if (negativePrompt) body.negative_prompt = negativePrompt;
           if (transparent) body.transparent = true;
 
-          console.log('Generating image via local proxy (Base64 mode)...');
           const res = await fetch('/api/proxy/images/generations', {
             method: 'POST',
             headers: {
@@ -309,42 +334,37 @@ function App() {
           const b64Data = response.data?.[0]?.b64_json;
           if (!b64Data) throw new Error('Failed to get image data');
           
-          // Use a data URL for the image source
           const imageUrl = `data:image/webp;base64,${b64Data}`;
           
           const updatedItem = { ...item, url: imageUrl, isPending: false };
-          setItems(prev => prev.map(it => it.id === item.id ? updatedItem : it));
+          setItems(items.map(it => it.id === item.id ? updatedItem : it));
         }
       } catch (err) {
         let errorMsg = err.message || 'Generation failed';
         if (err.status === 401) errorMsg = 'Invalid API Key / Unauthorized';
-        if (err.status === 400) errorMsg = 'Bad Request. Check parameters.';
-        if (err.status === 402) errorMsg = 'Insufficient Balance';
         const failedItem = { ...item, isPending: false, error: errorMsg };
-        setItems(prev => prev.map(it => it.id === item.id ? failedItem : it));
+        setItems(items.map(it => it.id === item.id ? failedItem : it));
         onItemLoad(failedItem, errorMsg);
       }
     });
 
-  }, [prompt, isGenerating, vibrate, variations, mode, canvasOffset, canvasScale, selectedTextModel, selectedModel, selectedSize, seed, enhance, negativePrompt, transparent, apiKey, setItems, onItemLoad, toast]);
+  }, [prompt, isGenerating, vibrate, variations, mode, canvasView, selectedTextModel, selectedModel, selectedSize, seed, enhance, negativePrompt, transparent, apiKey, items, setItems, onItemLoad, toast]);
 
   const updateItem = useCallback((id, updates) => {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
-  }, [setItems]);
+    setItems(items.map(it => it.id === id ? { ...it, ...updates } : it));
+  }, [items, setItems]);
 
   const onRemoveItem = useCallback((id) => {
-    setItems(prev => prev.filter(it => it.id !== id));
+    setItems(items.filter(it => it.id !== id));
     vibrate();
     toast('Island removed');
-  }, [vibrate, toast, setItems]);
+  }, [vibrate, toast, items, setItems]);
 
   const bringToFront = useCallback((id) => {
-    setItems(prev => {
-      const item = prev.find(it => it.id === id);
-      if (!item) return prev;
-      return [...prev.filter(it => it.id !== id), item];
-    });
-  }, [setItems]);
+    const item = items.find(it => it.id === id);
+    if (!item) return;
+    setItems([...items.filter(it => it.id !== id), item]);
+  }, [items, setItems]);
 
   const onCardAction = useCallback(async (action, item) => {
     vibrate();
@@ -413,8 +433,8 @@ function App() {
     const ratio = (item.h || 512) / (item.w || 512);
     const targetH = targetW * ratio;
     
-    const posX = (window.innerWidth / 2) - (targetW / 2) - (canvasOffset.x / canvasScale);
-    const posY = (window.innerHeight / 2) - (targetH / 2) - (canvasOffset.y / canvasScale);
+    const posX = (window.innerWidth / 2) - (targetW / 2) - (canvasView.x / canvasView.scale);
+    const posY = (window.innerHeight / 2) - (targetH / 2) - (canvasView.y / canvasView.scale);
 
     const newItem = { 
       ...item,
@@ -427,15 +447,15 @@ function App() {
       isNew: true 
     };
     
-    setItems(prev => [newItem, ...prev]);
+    setItems([newItem, ...items]);
     toast('Island restored ✦');
-  }, [canvasOffset, canvasScale, setItems, vibrate, toast]);
+  }, [canvasView, items, setItems, vibrate, toast]);
 
   const onRemoveHistory = useCallback((item) => {
     vibrate();
-    setHistory(prev => prev.filter(h => h.ts !== item.ts));
+    setHistory(history.filter(h => h.ts !== item.ts));
     toast('Removed from history');
-  }, [vibrate, toast, setHistory]);
+  }, [vibrate, toast, history, setHistory]);
 
   const onHotSelect = useCallback((p) => { 
     setPrompt(p); 
@@ -498,12 +518,18 @@ function App() {
         onUpdateItem={updateItem}
         onRemoveItem={onRemoveItem}
         onBringToFront={bringToFront}
-        offset={canvasOffset}
-        onOffsetChange={setCanvasOffset}
-        scale={canvasScale}
-        onScaleChange={setCanvasScale}
+        offset={{ x: canvasView.x, y: canvasView.y }}
+        onOffsetChange={(off) => setCanvasView({ ...canvasView, ...off })}
+        scale={canvasView.scale}
+        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
         showEmpty={items.length === 0} 
         onItemLoad={onItemLoad}
+      />
+
+      <ZoomControls 
+        scale={canvasView.scale}
+        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
+        onRecenter={onRecenter}
       />
 
       <HotPrompts onSelect={onHotSelect} />
