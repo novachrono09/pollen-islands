@@ -1188,7 +1188,7 @@ button:active {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 6px;
+  padding: 6px 8px 6px 4px; /* More padding on right, less on left for handle */
   border-radius: 20px;
   z-index: 9999;
   height: 44px;
@@ -1199,9 +1199,22 @@ button:active {
   border: 1.5px solid rgba(255,255,255,0.7);
   user-select: none;
   touch-action: none;
+  cursor: grab;
 }
 
-.zoom-controls:active {
+.drag-handle {
+  width: 24px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  opacity: 0.3;
+  cursor: grab;
+  margin-right: 2px;
+}
+
+.zoom-controls:active, .drag-handle:active {
   cursor: grabbing;
 }
 
