@@ -34,9 +34,10 @@ export function useCanvasInteractions({
     }
   }, [worldRef]);
 
-  // Sync refs when props change (only when not interacting)
+  // Sync refs when props change
   useEffect(() => {
-    if (!isPanning.current && !isDragging.current && !isResizing.current && !zoomSyncTimeout.current) {
+    // Only block sync if we are actively dragging/panning
+    if (!isPanning.current && !isDragging.current && !isResizing.current) {
       currentView.current = { x: offset.x, y: offset.y, scale: scale };
       updateDOM();
     }

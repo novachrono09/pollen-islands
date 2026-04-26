@@ -525,13 +525,7 @@ function App() {
         showEmpty={items.length === 0} 
         onItemLoad={onItemLoad}
       />
-
-      <ZoomControls 
-        scale={canvasView.scale}
-        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
-        onRecenter={onRecenter}
-      />
-
+      
       <HotPrompts onSelect={onHotSelect} />
 
       <PromptIsland 
@@ -549,6 +543,12 @@ function App() {
         transparent={transparent} setTransparent={setTransparent}
         onClear={onClearCanvas}
         onHistoryClick={() => { setExpanded(true); toast('History on right (desktop)'); }}
+      />
+
+      <ZoomControls 
+        scale={canvasView.scale}
+        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
+        onRecenter={onRecenter}
       />
 
       <Confetti ref={confettiRef} />
