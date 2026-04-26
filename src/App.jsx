@@ -529,7 +529,7 @@ function App() {
       />
       
       <IslandCanvas 
-        items={items} 
+        items={Array.isArray(items) ? items : []} 
         onAction={onCardAction} 
         onUpdateItem={updateItem}
         onRemoveItem={onRemoveItem}
@@ -538,7 +538,7 @@ function App() {
         onOffsetChange={(off) => setCanvasView({ ...canvasView, ...off })}
         scale={canvasView.scale}
         onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
-        showEmpty={items.length === 0} 
+        showEmpty={!Array.isArray(items) || items.length === 0} 
         onItemLoad={onItemLoad}
       />
 

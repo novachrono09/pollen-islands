@@ -30,8 +30,13 @@ export const useStore = create(
       transparent: false,
 
       // --- Actions ---
-      setHistory: (history) => set({ history }),
-      setItems: (items) => set({ items }),
+      // Enhanced setters that support both direct values and functional updaters
+      setHistory: (val) => set((state) => ({ 
+        history: typeof val === 'function' ? val(state.history) : val 
+      })),
+      setItems: (val) => set((state) => ({ 
+        items: typeof val === 'function' ? val(state.items) : val 
+      })),
       setCanvasView: (canvasView) => set({ canvasView }),
       setSessions: (sessions) => set({ sessions }),
       
@@ -55,13 +60,13 @@ export const useStore = create(
 
       addNode: (newItem) => set((state) => ({ items: [newItem, ...state.items] })),
       updateNode: (id, updates) => set((state) => ({
-        items: state.items.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+        items: (state.items || []).map((item) => (item.id === id ? { ...item, ...updates } : item)),
       })),
       removeNode: (id) => set((state) => ({
-        items: state.items.filter((item) => item.id !== id),
+        items: (state.items || []).filter((item) => item.id !== id),
       })),
       bringNodeToFront: (id) => set((state) => {
-        const item = state.items.find(it => it.id === id);
+        const item = (state.items || []).find(it => it.id === id);
         if (!item) return state;
         return { items: [...state.items.filter(it => it.id !== id), item] };
       }),
