@@ -1,49 +1,38 @@
 # Floating Island Studio - GEMINI Context
 
-This document provides essential context and instructions for AI agents interacting with the Floating Island Studio project.
+This document provides foundational architectural context and development mandates for AI agents.
 
 ## Project Overview
-
-**Floating Island Studio** is a high-performance, visually rich AI image generation workbench built with **React 19** and **Vite**. It leverages the [pollinations.ai](https://pollinations.ai) API to generate images across multiple models and configurations.
-
-### Key Technologies
-- **Frontend Framework:** React 19 (Functional components, Hooks)
-- **Build Tool:** Vite
-- **Styling:** Vanilla CSS with modern features (Glassmorphism, Mesh Gradients, Responsive Design)
-- **Persistence:** Browser `localStorage` via custom hooks
-- **API Integration:** Direct `fetch` calls to `image.pollinations.ai` and `enter.pollinations.ai`
+**Floating Island Studio** is a visually rich AI workbench built with **React 19** and **Vite**, leveraging the **Pollinations API** for multi-modal generation.
 
 ### Core Architecture
-- **State Management:** Centralized in `src/App.jsx` using `useState` and a custom `useLocalStorage` hook.
-- **Component Structure:**
-    - `Header`: User status (balance, streak, API key).
-    - `Sidebar`: Quick access to tools (Size, Seed, Variations, Enhance).
-    - `PromptIsland`: The primary interaction point for inputting prompts and selecting models/settings.
-    - `MasonryGrid`: A responsive layout for displaying generated results.
-    - `HistoryRibbon`: Quick access to previously generated images.
-- **Visual Effects:** Custom `Confetti`, `Toast` notifications, and CSS-based animations.
+- **State Management**: 
+  - **Zustand (`src/store/useStore.js`)**: Centralized state for global configuration, history, and the **API Key**.
+  - **Local Persistence**: Integrated with browser `localStorage` via Zustand middleware and custom `useLocalStorage` hooks for transient UI state.
+- **API Strategy**:
+  - **OpenAI SDK**: Used for all text and image generations via the `openai` npm package.
+  - **Proxy Routing**: All requests are routed through `/api/proxy`.
+    - **Local**: Handled by Vite's dev proxy in `vite.config.js`.
+    - **Production**: Handled by Vercel rewrites in `vercel.json`.
+  - **Authentication**: Supports "Bring Your Own Pollen" (BYOP) and manual `sk_` / `pk_` entry.
+- **Image Generation**:
+  - **Base64 Delivery**: Images are generated with `response_format: 'b64_json'` to bypass CORS/Auth issues during browser previews.
+  - **Data URLs**: Generated images are stored as `data:image/webp;base64` strings for instant rendering and offline persistence.
 
-## Building and Running
+## Infrastructure
+- **Git**: Hosted at `https://github.com/novachrono09/pollen-islands`.
+- **Deployment**: Vercel (Auto-deploy on `main` branch).
+- **Styling**: Vanilla CSS in `src/index.css` using modern glassmorphism and mesh gradient patterns.
 
-The project uses standard `npm` scripts defined in `package.json`:
-
-| Task | Command | Description |
-| :--- | :--- | :--- |
-| **Development** | `npm run dev` | Starts the Vite dev server with HMR. |
-| **Build** | `npm run build` | Compiles the project for production. |
-| **Linting** | `npm run lint` | Runs ESLint for code quality checks. |
-| **Preview** | `npm run preview` | Previews the production build locally. |
-
-## Development Conventions
-
-- **State Persistence:** Always use the `useLocalStorage` hook for state that should survive page refreshes (e.g., API keys, history, selected models).
-- **Styling:** Prefer **Vanilla CSS** in `src/index.css`. Use CSS variables defined in `:root` for consistency (e.g., `--vermillion`, `--jade`, `--glass`).
-- **Responsiveness:** The layout is mobile-first but includes specific "Left Rail" and "History Ribbon" features that appear only on larger viewports (`min-width: 1024px`).
-- **Interaction:** UI feedback is critical. Use the `toast` function and `navigator.vibrate` (where available) for user actions.
-- **API Safety:** Ensure the `token` (API key) is handled securely and only appended to requests when present.
+## Development Mandates
+1. **State Consistency**: Always use `useStore` for `apiKey` and global generation settings to ensure multi-component synchronization.
+2. **Proxy Discipline**: Never call `gen.pollinations.ai` directly from the frontend. Use `/api/proxy/...` to ensure CORS and Header injection work correctly across all environments.
+3. **API Security**: The `apiKey` must be trimmed and sanitized before being passed to the `OpenAI` constructor.
+4. **Performance**: Maintain the "Floating Island" canvas performance by memoizing canvas items and using `useLayoutEffect` for world transforms.
 
 ## Key Files
-- `src/App.jsx`: Main logic, state orchestration, and API handling.
-- `src/components/PromptIsland.jsx`: Complex UI for prompt input and settings.
-- `src/hooks/useLocalStorage.js`: Shared utility for state persistence.
-- `src/index.css`: Comprehensive design system and global styles.
+- `src/App.jsx`: Main orchestration and generation logic.
+- `src/store/useStore.js`: Persistent global state.
+- `src/components/IslandCanvas.jsx`: High-performance draggable/resizable canvas.
+- `vite.config.js`: Dev proxy and build configuration.
+- `vercel.json`: Production rewrite rules for API proxying.
