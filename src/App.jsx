@@ -79,7 +79,7 @@ function App() {
       toast('Canvas cleared 🗑️');
       vibrate();
     }
-  }, [items, vibrate, toast, setItems]);
+  }, [items.length, vibrate, toast, setItems]);
 
   const onSaveSession = useCallback(() => {
     const name = window.prompt('Enter project name:', `Project ${sessions.length + 1}`);
@@ -95,7 +95,7 @@ function App() {
     
     setSessions(prev => [newSession, ...prev]);
     toast('Project saved ✓');
-  }, [items, canvasView, sessions, setSessions, toast]);
+  }, [items, canvasView, sessions.length, setSessions, toast]);
 
   const onLoadSession = useCallback((session) => {
     setItems(session.items);
@@ -198,10 +198,10 @@ function App() {
 
     pendingCount.current--;
     if (errorMsg) {
-      setItems(items.map(it => it.id === item.id ? { ...it, isNew: false, error: errorMsg } : it));
+      setItems(prev => prev.map(it => it.id === item.id ? { ...it, isNew: false, error: errorMsg } : it));
     } else {
-      setHistory([item, ...history].slice(0, 100));
-      setItems(items.map(it => it.id === item.id ? { ...it, isNew: false } : it));
+      setHistory(prev => [item, ...prev].slice(0, 100));
+      setItems(prev => prev.map(it => it.id === item.id ? { ...it, isNew: false } : it));
     }
 
     if (pendingCount.current <= 0) {
@@ -215,7 +215,7 @@ function App() {
     } else if (errorMsg) {
       toast(`Generation failed ❌`);
     }
-  }, [history, setHistory, toast, items, setItems]);
+  }, [setHistory, toast, setItems]);
 
   const onGenerate = useCallback(async () => {
     const p = prompt.trim();
@@ -230,11 +230,12 @@ function App() {
     const now = Date.now();
     lastGenTs.current = now;
     
-    pendingCount.current = parseInt(variations);
+    const varsCount = parseInt(variations);
+    pendingCount.current = varsCount;
     
     const targetW = 320;
     
-    const newItems = Array.from({ length: parseInt(variations) }).map((_, i) => {
+    const newItems = Array.from({ length: varsCount }).map((_, i) => {
       const offsetX = (i % 2 === 0 ? i * 20 : -i * 20);
       const offsetY = i * 20;
       
@@ -264,16 +265,15 @@ function App() {
       };
     });
 
-    setItems([...newItems, ...items]);
+    setItems(prev => [...newItems, ...prev]);
 
     if (!apiKey) {
       toast('API Key required. Click Pollinations logo to connect.');
       newItems.forEach(item => {
         const errorMsg = 'Missing API Key';
-        const failedItem = { ...item, isPending: false, error: errorMsg };
-        setItems(items.map(it => it.id === item.id ? failedItem : it));
-        onItemLoad(failedItem, errorMsg);
+        setItems(prev => prev.map(it => it.id === item.id ? { ...item, isPending: false, error: errorMsg } : it));
       });
+      setIsGenerating(false);
       return;
     }
 
@@ -305,7 +305,7 @@ function App() {
           const content = response.choices?.[0]?.message?.content || 'Empty response';
           
           const updatedItem = { ...item, content, isPending: false };
-          setItems(items.map(it => it.id === item.id ? updatedItem : it));
+          setItems(prev => prev.map(it => it.id === item.id ? updatedItem : it));
           onItemLoad(updatedItem);
 
         } else {
@@ -321,7 +321,6 @@ function App() {
           if (negativePrompt) body.negative_prompt = negativePrompt;
           if (transparent) body.transparent = true;
 
-          console.log('Generating image via local proxy (Base64 + Query Auth)...');
           const res = await fetch(`/api/proxy/images/generations?key=${encodeURIComponent(trimmedKey)}`, {
             method: 'POST',
             headers: {
@@ -339,37 +338,41 @@ function App() {
           const b64Data = response.data?.[0]?.b64_json;
           if (!b64Data) throw new Error('Failed to get image data');
           
-          const imageUrl = `data:image/webp;base64,${b64Data}`;
+          // Fix mime-type to JPEG to match Pollinations flux response
+          const imageUrl = `data:image/jpeg;base64,${b64Data}`;
           
           const updatedItem = { ...item, url: imageUrl, isPending: false };
-          setItems(items.map(it => it.id === item.id ? updatedItem : it));
+          setItems(prev => prev.map(it => it.id === item.id ? updatedItem : it));
+          // Note: Card image onLoad will trigger onItemLoad
         }
       } catch (err) {
         let errorMsg = err.message || 'Generation failed';
         if (err.status === 401) errorMsg = 'Invalid API Key / Unauthorized';
         const failedItem = { ...item, isPending: false, error: errorMsg };
-        setItems(items.map(it => it.id === item.id ? failedItem : it));
+        setItems(prev => prev.map(it => it.id === item.id ? failedItem : it));
         onItemLoad(failedItem, errorMsg);
       }
     });
 
-  }, [prompt, isGenerating, vibrate, variations, mode, canvasView, selectedTextModel, selectedModel, selectedSize, seed, enhance, negativePrompt, transparent, apiKey, items, setItems, onItemLoad, toast]);
+  }, [prompt, isGenerating, vibrate, variations, mode, canvasView, selectedTextModel, selectedModel, selectedSize, seed, enhance, negativePrompt, transparent, apiKey, setItems, onItemLoad, toast]);
 
   const updateItem = useCallback((id, updates) => {
-    setItems(items.map(it => it.id === id ? { ...it, ...updates } : it));
-  }, [items, setItems]);
+    setItems(prev => prev.map(it => it.id === id ? { ...it, ...updates } : it));
+  }, [setItems]);
 
   const onRemoveItem = useCallback((id) => {
-    setItems(items.filter(it => it.id !== id));
+    setItems(prev => prev.filter(it => it.id !== id));
     vibrate();
     toast('Island removed');
-  }, [vibrate, toast, items, setItems]);
+  }, [vibrate, toast, setItems]);
 
   const bringToFront = useCallback((id) => {
-    const item = items.find(it => it.id === id);
-    if (!item) return;
-    setItems([...items.filter(it => it.id !== id), item]);
-  }, [items, setItems]);
+    setItems(prev => {
+        const item = prev.find(it => it.id === id);
+        if (!item) return prev;
+        return [...prev.filter(it => it.id !== id), item];
+    });
+  }, [setItems]);
 
   const onCardAction = useCallback(async (action, item) => {
     vibrate();
@@ -452,15 +455,15 @@ function App() {
       isNew: true 
     };
     
-    setItems([newItem, ...items]);
+    setItems(prev => [newItem, ...prev]);
     toast('Island restored ✦');
-  }, [canvasView, items, setItems, vibrate, toast]);
+  }, [canvasView, setItems, vibrate, toast]);
 
   const onRemoveHistory = useCallback((item) => {
     vibrate();
-    setHistory(history.filter(h => h.ts !== item.ts));
+    setHistory(prev => prev.filter(h => h.ts !== item.ts));
     toast('Removed from history');
-  }, [vibrate, toast, history, setHistory]);
+  }, [vibrate, toast, setHistory]);
 
   const onHotSelect = useCallback((p) => { 
     setPrompt(p); 
