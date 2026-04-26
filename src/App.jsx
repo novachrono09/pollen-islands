@@ -288,7 +288,12 @@ function App() {
           const openai = new OpenAI({
             baseURL: window.location.origin + '/api/proxy',
             apiKey: trimmedKey,
-            dangerouslyAllowBrowser: true
+            dangerouslyAllowBrowser: true,
+            fetch: async (url, options) => {
+              const u = new URL(url);
+              u.searchParams.set('key', trimmedKey);
+              return fetch(u.toString(), options);
+            }
           });
           
           const response = await openai.chat.completions.create({
@@ -316,11 +321,11 @@ function App() {
           if (negativePrompt) body.negative_prompt = negativePrompt;
           if (transparent) body.transparent = true;
 
-          const res = await fetch('/api/proxy/images/generations', {
+          console.log('Generating image via local proxy (Base64 + Query Auth)...');
+          const res = await fetch(`/api/proxy/images/generations?key=${encodeURIComponent(trimmedKey)}`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'X-API-Key': trimmedKey
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(body)
           });
@@ -477,8 +482,6 @@ function App() {
   useEffect(() => {
     const handleClick = (e) => {
       if (expanded) {
-        // If the click target is already detached from the DOM (common during deletions), 
-        // we shouldn't trigger a collapse because we can't reliably determine where it was.
         if (!e.target.isConnected) return;
 
         const isUiClick = e.target.closest('.island') || 
@@ -535,7 +538,7 @@ function App() {
         showEmpty={items.length === 0} 
         onItemLoad={onItemLoad}
       />
-      
+
       <HotPrompts onSelect={onHotSelect} />
 
       <PromptIsland 
