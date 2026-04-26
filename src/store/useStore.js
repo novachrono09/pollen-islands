@@ -17,6 +17,7 @@ export const useStore = create(
       variations: 1,
       enhance: true,
       apiKey: '',
+      zoomPos: { x: 180, y: 6 }, // Default: Right of the logo
       
       // --- Transient UI State ---
       prompt: '',
@@ -41,6 +42,7 @@ export const useStore = create(
       setVariations: (variations) => set({ variations }),
       setEnhance: (enhance) => set({ enhance }),
       setApiKey: (apiKey) => set({ apiKey }),
+      setZoomPos: (zoomPos) => set({ zoomPos }),
       
       setPrompt: (prompt) => set({ prompt }),
       setExpanded: (expanded) => set({ expanded }),
@@ -77,7 +79,8 @@ export const useStore = create(
         selectedSize: state.selectedSize,
         variations: state.variations,
         enhance: state.enhance,
-        apiKey: state.apiKey
+        apiKey: state.apiKey,
+        zoomPos: state.zoomPos
       }),
     }
   )
