@@ -477,7 +477,17 @@ function App() {
   useEffect(() => {
     const handleClick = (e) => {
       if (expanded) {
-        if (!e.target.closest('.island') && !e.target.closest('.rail-btn')) {
+        // If the click target is already detached from the DOM (common during deletions), 
+        // we shouldn't trigger a collapse because we can't reliably determine where it was.
+        if (!e.target.isConnected) return;
+
+        const isUiClick = e.target.closest('.island') || 
+                          e.target.closest('.rail-btn') || 
+                          e.target.closest('.history-ribbon') || 
+                          e.target.closest('.zoom-controls') ||
+                          e.target.closest('.modal-overlay');
+                          
+        if (!isUiClick) {
           setExpanded(false);
         }
       }
