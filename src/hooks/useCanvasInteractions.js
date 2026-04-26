@@ -15,6 +15,7 @@ export function useCanvasInteractions({
   const isDragging = useRef(false);
   const isPanning = useRef(false);
   const isResizing = useRef(false);
+  const isPinching = useRef(false);
   const activeItemId = useRef(null);
   const lastPinchDistance = useRef(null);
   const zoomSyncTimeout = useRef(null);
@@ -36,8 +37,8 @@ export function useCanvasInteractions({
 
   // Sync refs when props change
   useEffect(() => {
-    // Only block sync if we are actively dragging/panning
-    if (!isPanning.current && !isDragging.current && !isResizing.current) {
+    // Block sync if we are actively interacting (including pinch)
+    if (!isPanning.current && !isDragging.current && !isResizing.current && !isPinching.current) {
       currentView.current = { x: offset.x, y: offset.y, scale: scale };
       updateDOM();
     }
@@ -186,6 +187,7 @@ export function useCanvasInteractions({
     const handleTouchMove = (e) => {
       if (e.touches.length === 2) {
         e.preventDefault();
+        isPinching.current = true;
         const dist = getDistance(e.touches);
         if (lastPinchDistance.current) {
           const delta = dist - lastPinchDistance.current;
@@ -201,6 +203,12 @@ export function useCanvasInteractions({
 
           currentView.current = { x: nextX, y: nextY, scale: newScale };
           updateDOM();
+
+          if (zoomSyncTimeout.current) clearTimeout(zoomSyncTimeout.current);
+          zoomSyncTimeout.current = setTimeout(() => {
+            onScaleChange(newScale);
+            onOffsetChange({ x: nextX, y: nextY });
+          }, 10);
         }
         lastPinchDistance.current = dist;
       }
@@ -212,6 +220,7 @@ export function useCanvasInteractions({
         onOffsetChange({ x: currentView.current.x, y: currentView.current.y });
       }
       lastPinchDistance.current = null;
+      setTimeout(() => { isPinching.current = false; }, 50);
     };
 
     el.addEventListener('touchmove', handleTouchMove, { passive: false });
