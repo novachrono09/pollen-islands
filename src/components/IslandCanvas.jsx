@@ -103,7 +103,7 @@ const IslandCanvas = ({ items, onAction, onUpdateItem, onRemoveItem, onBringToFr
             <Card 
               item={item} 
               onAction={onAction} 
-              onRemove={onRemoveItem}
+              onRemove={() => onRemoveItem(item.id)}
               onItemLoad={onItemLoad}
             />
             <div className="node-resizer" />
