@@ -2,7 +2,7 @@ import React, { useRef, useCallback, memo, useLayoutEffect } from 'react';
 import Card from './Card';
 import { useCanvasInteractions } from '../hooks/useCanvasInteractions';
 
-const IslandCanvas = ({ items, onAction, onUpdateItem, onRemoveItem, onBringToFront, offset, scale, onOffsetChange, onScaleChange, showEmpty, onItemLoad }) => {
+const IslandCanvas = ({ items, onAction, onUpdateItem, onRemoveItem, onBringToFront, offset, scale, onOffsetChange, onScaleChange, showEmpty, onItemLoad, onMove }) => {
   const containerRef = useRef(null);
   const worldRef = useRef(null);
   const itemNodesRef = useRef({});
@@ -25,7 +25,8 @@ const IslandCanvas = ({ items, onAction, onUpdateItem, onRemoveItem, onBringToFr
     onOffsetChange,
     onScaleChange,
     onUpdateItem,
-    onBringToFront
+    onBringToFront,
+    onMove
   });
 
   // Sync World Transform (Recenter/Initial)

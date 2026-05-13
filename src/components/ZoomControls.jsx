@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useStore } from '../store/useStore';
 
-const ZoomControls = ({ scale, onScaleChange, onRecenter }) => {
+const ZoomControls = ({ scale, onScaleChange, onRecenter, onResetZoom }) => {
   const zoomPos = useStore(state => state.zoomPos);
   const setZoomPos = useStore(state => state.setZoomPos);
   
@@ -17,11 +17,6 @@ const ZoomControls = ({ scale, onScaleChange, onRecenter }) => {
   const zoomOut = (e) => {
     e.stopPropagation();
     onScaleChange(Math.max(scale - 0.1, 0.2));
-  };
-
-  const setZoom = (e, value) => {
-    e.stopPropagation();
-    onScaleChange(value);
   };
 
   const handlePointerDown = (e) => {
@@ -69,17 +64,21 @@ const ZoomControls = ({ scale, onScaleChange, onRecenter }) => {
         </svg>
       </div>
 
-      <button onClick={zoomOut} title="Zoom Out" aria-label="Zoom Out">
+      <button onPointerDown={(e) => { e.stopPropagation(); zoomOut(e); }} title="Zoom Out" aria-label="Zoom Out">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
           <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
       </button>
       
-      <div className="zoom-value" onClick={(e) => setZoom(e, 1)} title="Reset Zoom">
+      <button 
+        className="zoom-value" 
+        onPointerDown={(e) => { e.stopPropagation(); onResetZoom(); }} 
+        title="Reset Zoom"
+      >
         {Math.round(scale * 100)}%
-      </div>
+      </button>
 
-      <button onClick={zoomIn} title="Zoom In" aria-label="Zoom In">
+      <button onPointerDown={(e) => { e.stopPropagation(); zoomIn(e); }} title="Zoom In" aria-label="Zoom In">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
           <line x1="12" y1="5" x2="12" y2="19" />
           <line x1="5" y1="12" x2="19" y2="12" />
@@ -88,7 +87,7 @@ const ZoomControls = ({ scale, onScaleChange, onRecenter }) => {
 
       <div className="zoom-divider"></div>
 
-      <button onClick={(e) => { e.stopPropagation(); onRecenter(); }} title="Recenter View" aria-label="Recenter View">
+      <button onPointerDown={(e) => { e.stopPropagation(); onRecenter(); }} title="Recenter View" aria-label="Recenter View">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5">
           <circle cx="12" cy="12" r="10" />
           <circle cx="12" cy="12" r="3" />

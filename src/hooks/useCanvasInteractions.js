@@ -10,7 +10,8 @@ export function useCanvasInteractions({
   onOffsetChange,
   onScaleChange,
   onUpdateItem,
-  onBringToFront
+  onBringToFront,
+  onMove // New optional callback for real-time coords
 }) {
   const isDragging = useRef(false);
   const isPanning = useRef(false);
@@ -32,7 +33,10 @@ export function useCanvasInteractions({
     if (worldRef.current) {
       worldRef.current.style.transform = `translate3d(${currentView.current.x}px, ${currentView.current.y}px, 0) scale(${currentView.current.scale})`;
     }
-  }, [worldRef]);
+    if (onMove) {
+      onMove({ x: currentView.current.x, y: currentView.current.y });
+    }
+  }, [worldRef, onMove]);
 
   // Keep Ref in sync with external state changes (like buttons)
   useEffect(() => {

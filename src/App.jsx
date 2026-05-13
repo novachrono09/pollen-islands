@@ -48,7 +48,14 @@ function App() {
   const lastGenTs = useRef(0);
   const toastRef = useRef(null);
   const confettiRef = useRef(null);
+  const coordsRef = useRef(null);
   const pendingCount = useRef(0);
+
+  const onCanvasMove = useCallback((pos) => {
+    if (coordsRef.current) {
+      coordsRef.current.textContent = `${Math.round(pos.x)}, ${Math.round(pos.y)}`;
+    }
+  }, []);
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -135,7 +142,12 @@ function App() {
   }, [items, canvasView, setItems, vibrate, toast]);
 
   const onRecenter = useCallback(() => {
-    setCanvasView({ x: 0, y: 0, scale: 1 });
+    setCanvasView({ x: 0, y: 0 });
+    vibrate();
+  }, [setCanvasView, vibrate]);
+
+  const onResetZoom = useCallback(() => {
+    setCanvasView({ scale: 1 });
     vibrate();
   }, [setCanvasView, vibrate]);
 
@@ -535,12 +547,17 @@ function App() {
         onRemoveItem={onRemoveItem}
         onBringToFront={bringToFront}
         offset={{ x: canvasView.x, y: canvasView.y }}
-        onOffsetChange={(off) => setCanvasView({ ...canvasView, ...off })}
+        onOffsetChange={(off) => setCanvasView(off)}
         scale={canvasView.scale}
-        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
+        onScaleChange={(s) => setCanvasView({ scale: s })}
         showEmpty={!Array.isArray(items) || items.length === 0} 
         onItemLoad={onItemLoad}
+        onMove={onCanvasMove}
       />
+
+      <div className="canvas-coords" ref={coordsRef}>
+        {Math.round(canvasView.x)}, {Math.round(canvasView.y)}
+      </div>
 
       <HotPrompts onSelect={onHotSelect} />
 
@@ -563,8 +580,9 @@ function App() {
 
       <ZoomControls 
         scale={canvasView.scale}
-        onScaleChange={(s) => setCanvasView({ ...canvasView, scale: s })}
+        onScaleChange={(s) => setCanvasView({ scale: s })}
         onRecenter={onRecenter}
+        onResetZoom={onResetZoom}
       />
 
       <Confetti ref={confettiRef} />

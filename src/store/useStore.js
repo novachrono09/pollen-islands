@@ -37,7 +37,12 @@ export const useStore = create(
       setItems: (val) => set((state) => ({ 
         items: typeof val === 'function' ? val(state.items) : val 
       })),
-      setCanvasView: (canvasView) => set({ canvasView }),
+      setCanvasView: (val) => set((state) => ({ 
+        canvasView: { 
+          ...state.canvasView, 
+          ...(typeof val === 'function' ? val(state.canvasView) : val) 
+        } 
+      })),
       setSessions: (sessions) => set({ sessions }),
       
       setMode: (mode) => set({ mode }),
