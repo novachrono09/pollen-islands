@@ -30,6 +30,11 @@ yarn-error.log*
 .gemini/
 .mcp/
 api-docs.md
+APIDOCS.md
+GEMINI.md
+**/GEMINI.md
+app_generation_prompt.md
+future-ideas.md
 fix.cjs
 test.js
 
